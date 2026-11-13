@@ -74,7 +74,7 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px s
 .btn:hover { filter: brightness(1.06); }
 .btn:active { transform: scale(.97); }
 .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
-.btn.small { padding: 6px 12px; font-size: 13px; }
+.btn.small { padding: 6px 12px; font-size: 13px; white-space: nowrap; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .form-msg { font-size: 14px; min-height: 1.5em; color: var(--muted); }
 
@@ -110,13 +110,16 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 /* Crew */
 .section-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .crew { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 14px; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 6px; cursor: pointer; text-align: left; transition: transform .15s ease, border-color .15s ease; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 6px; text-align: left; transition: transform .15s ease, border-color .15s ease; }
 .card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 .card.active { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
 .card .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .card .name { font-family: var(--font-display); font-weight: 700; font-size: 18px; overflow-wrap: anywhere; }
 .card .pct { font-family: var(--font-mono); font-size: 18px; }
 .card .mood { font-weight: 600; font-size: 14px; }
+.you { font-family: var(--font-body); font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 99px; margin-left: 6px; vertical-align: middle; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--ink); }
+.btn.danger { color: var(--z1); border-color: color-mix(in srgb, var(--z1) 45%, var(--line)); }
+.btn.armed { background: var(--z1); color: #fff; border-color: var(--z1); }
 .card .note { font-size: 13px; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
 .card .meta .count { white-space: nowrap; }
 .card .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
@@ -157,7 +160,7 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
     <div>
       <div class="eyebrow">How in are we?</div>
       <h1>Deal Dial</h1>
-      <p>Drag the dial to say how likely someone is to take a deal. Rate again whenever the mood shifts, and watch it move over time.</p>
+      <p>Drag the dial to say how likely you are to take a deal. Everyone rates themselves, again whenever their mood shifts, and the dials show where the crew stands.</p>
     </div>
     <button class="btn ghost small" id="exportBtn" type="button">Export CSV</button>
   </header>
@@ -167,12 +170,10 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
     <form class="panel stack" id="rateForm" autocomplete="off" aria-labelledby="rateTitle">
       <div>
         <div class="eyebrow">Check in</div>
-        <h2 id="rateTitle">Rate it</h2>
+        <h2 id="rateTitle">How in are you?</h2>
+        <div class="muted" id="ratingAs" style="font-size:14px;">Join the board to rate yourself</div>
       </div>
       <div class="row">
-        <label for="ratePerson">Who
-          <select id="ratePerson"></select>
-        </label>
         <label for="rateDeal">On which deal
           <select id="rateDeal"></select>
         </label>
@@ -188,12 +189,12 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
         <div class="pct" id="bigPct">50%</div>
         <div class="mood" id="bigMood">On the fence</div>
       </div>
-      <label for="rateValue">Chance they take it
+      <label for="rateValue">Chance you take it
         <input type="range" id="rateValue" min="0" max="100" step="1" value="50">
       </label>
       <div class="rate-actions">
         <label for="rateNote">Why (optional)
-          <input type="text" id="rateNote" maxlength="100" placeholder="Wants to check flights first">
+          <input type="text" id="rateNote" maxlength="100" placeholder="Need to check flights first">
         </label>
         <button class="btn" type="submit" id="rateBtn">Log rating</button>
       </div>
@@ -207,14 +208,30 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
       </div>
       <div class="deals" id="deals"></div>
       <hr class="divider">
-      <form id="friendForm" autocomplete="off">
-        <label for="friendName">Add a friend
+      <form id="joinForm" autocomplete="off">
+        <label for="joinName"><span id="joinLabel">Join the board</span>
           <span class="add-inline">
-            <input type="text" id="friendName" maxlength="30" placeholder="Name">
-            <button class="btn ghost" type="submit">Add</button>
+            <input type="text" id="joinName" maxlength="30" placeholder="Your name">
+            <button class="btn ghost" type="submit" id="joinBtn">Join</button>
           </span>
         </label>
       </form>
+      <div class="stack" id="ownerTools" hidden>
+        <hr class="divider">
+        <div>
+          <div class="eyebrow">Owner tools</div>
+          <div class="muted" style="font-size:13px;">Only you can use these. Each action asks you to click twice.</div>
+        </div>
+        <div class="add-inline">
+          <select id="rmPerson" aria-label="Friend to remove"></select>
+          <button class="btn ghost small" type="button" id="rmPersonBtn">Remove friend</button>
+        </div>
+        <div class="add-inline">
+          <select id="rmDeal" aria-label="Deal to remove"></select>
+          <button class="btn ghost small" type="button" id="rmDealBtn">Remove deal</button>
+        </div>
+        <button class="btn ghost small danger" type="button" id="clearBtn">Clear everything</button>
+      </div>
     </div>
   </section>
 
@@ -252,7 +269,8 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
   const zoneOf = (v) => ZONES.find((z) => v >= z[0] && v < z[1]) || ZONES[4];
   const ANY = "__any", NEW = "__new";
 
-  const state = { people: [], deals: [], ratings: [], value: 50, selPerson: "", selDeal: ANY };
+  // people: [{id: userId, name}], deals: [{id, title, createdAt, owner}], ratings: [{id, personId, dealId, value, note, at}]
+  const state = { people: [], deals: [], ratings: [], value: 50, selDeal: ANY, me: null, isOwner: false };
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const byTime = (a, b) => (a.at || "").localeCompare(b.at || "");
@@ -265,6 +283,7 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
     return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
   const fmtWhen = (iso) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const msg = (t) => { $("formMsg").textContent = t; };
 
   // ---------- Gauge ----------
   const CX = 100, CY = 100, R = 80;
@@ -335,7 +354,9 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
   // ---------- Derived data ----------
   const sortedPeople = () => [...state.people].sort((a, b) => a.name.localeCompare(b.name));
   const sortedDeals = () => [...state.deals].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
-  const dealName = (id) => state.deals.find((d) => d.id === id)?.title || (id ? "Removed deal" : "General");
+  const dealName = (id) => state.deals.find((d) => d.id === id)?.title || (id ? "Removed deal" : "General vibe");
+  const myProfile = () => state.people.find((p) => p.id === state.me);
+  const canRemove = (ownerId) => state.isOwner || (!!state.me && ownerId === state.me);
   function ratingsFor(personId, dealId) {
     return state.ratings.filter((r) => r.personId === personId && (dealId === ANY || r.dealId === dealId)).sort(byTime);
   }
@@ -351,17 +372,20 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
     sel.innerHTML = options.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
     if (options.some(([v]) => v === value)) sel.value = value;
   }
-  function renderPickers() {
-    const ppl = sortedPeople().map((p) => [p.id, p.name]);
-    if (!ppl.some(([id]) => id === state.selPerson)) state.selPerson = ppl[0]?.[0] || "";
-    fillSelect($("ratePerson"), ppl.length ? ppl : [["", "Add a friend first"]], state.selPerson);
+  function renderForm() {
+    const mine = myProfile();
+    $("ratingAs").textContent = mine ? `Rating yourself as ${mine.name}` : (state.me ? "Join the board on the right to rate yourself" : "Sign in to claude.ai to rate yourself");
     const cur = $("rateDeal").value;
     const opts = [...sortedDeals().map((d) => [d.id, d.title]), ["", "General vibe (no deal)"], [NEW, "+ New deal…"]];
-    let want = cur && cur !== NEW ? cur : (state.selDeal !== ANY ? state.selDeal : (opts[0][0] === NEW ? "" : opts[0][0]));
-    if (cur === NEW) want = NEW;
+    let want = cur || (state.selDeal !== ANY ? state.selDeal : (opts[0][0] === NEW ? "" : opts[0][0]));
+    if (cur && !opts.some(([v]) => v === cur)) want = state.selDeal !== ANY ? state.selDeal : opts[0][0];
     fillSelect($("rateDeal"), opts, want);
     $("newDealWrap").hidden = $("rateDeal").value !== NEW;
-    $("rateBtn").disabled = !ppl.length;
+    $("rateBtn").disabled = !mine;
+    $("joinLabel").textContent = mine ? "Your name on the board" : "Join the board";
+    $("joinBtn").textContent = mine ? "Rename" : "Join";
+    $("joinName").placeholder = mine ? mine.name : "Your name";
+    $("joinForm").hidden = !state.me;
   }
 
   function renderDeals() {
@@ -371,13 +395,13 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
     if (state.ratings.some((r) => !r.dealId)) rows.push(["", "General vibe", dealSummary("")]);
     box.innerHTML = rows.map(([id, title, s]) => {
       const active = id === state.selDeal ? " active" : "";
-      if (!s) return `<button type="button" class="deal${active}" data-id="${esc(id)}"><span class="t">${esc(title)}</span><span class="v muted">All</span><span class="sub">Each friend's most recent rating</span></button>`;
+      if (!s) return `<button type="button" class="deal${active}" data-id="${esc(id)}"><span class="t">${esc(title)}</span><span class="v muted">All</span><span class="sub">Each person's most recent rating</span></button>`;
       const v = s.avg == null ? null : Math.round(s.avg);
       const z = v == null ? null : zoneOf(v);
       return `<button type="button" class="deal${active}" data-id="${esc(id)}">
         <span class="t">${esc(title)}</span><span class="v">${v == null ? "–" : v + "%"}</span>
         <span class="bar"><i style="width:${v ?? 0}%; background: var(${z ? z[2] : "--line"})"></i></span>
-        <span class="sub">${s.n ? `Crew average from ${s.n} friend${s.n === 1 ? "" : "s"} · ${z[3]}` : "No ratings yet"}</span>
+        <span class="sub">${s.n ? `Crew average from ${s.n} ${s.n === 1 ? "person" : "people"} · ${z[3]}` : "No ratings yet"}</span>
       </button>`;
     }).join("");
     if (!state.deals.length) box.insertAdjacentHTML("beforeend", `<div class="muted" style="font-size:14px;">No deals yet. Pick "+ New deal…" when you rate to put one on the table.</div>`);
@@ -407,7 +431,7 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
     const ppl = sortedPeople();
     if (!ppl.length) {
       cardEls.clear();
-      crew.innerHTML = `<div class="empty"><strong>No one on the board yet</strong>Add a friend on the right, then drag the dial to give them their first rating.</div>`;
+      crew.innerHTML = `<div class="empty"><strong>No one on the board yet</strong>Type your name under "Join the board", then drag the dial to give your first rating. Friends do the same from their own account.</div>`;
       return;
     }
     crew.querySelector(".empty")?.remove();
@@ -415,25 +439,20 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
     ppl.forEach((person) => {
       let el = cardEls.get(person.id);
       if (!el) {
-        el = document.createElement("button");
-        el.type = "button"; el.className = "card";
+        el = document.createElement("div");
+        el.className = "card";
         el.innerHTML = `<div class="head"><span class="name"></span><span class="pct num"></span></div>
           <svg class="mini-gauge" viewBox="0 0 200 112" aria-hidden="true">${gaugeMarkup(false)}</svg>
           <div class="head"><span class="mood"></span><span class="trend num" style="font-size:13px;"></span></div>
           <div class="sparkbox"></div><div class="note"></div><div class="meta"><span class="when"></span><span class="count"></span></div>`;
-        el.addEventListener("click", () => {
-          state.selPerson = person.id; $("ratePerson").value = person.id;
-          const last = ratingsFor(person.id, state.selDeal).pop();
-          if (last) setValue(last.value);
-          markActive();
-          $("rateTitle").scrollIntoView({ behavior: "smooth", block: "start" });
-        });
         cardEls.set(person.id, el);
       }
       crew.appendChild(el);
+      const isMe = person.id === state.me;
+      el.classList.toggle("active", isMe);
+      el.querySelector(".name").innerHTML = esc(person.name) + (isMe ? `<span class="you">You</span>` : "");
       const list = ratingsFor(person.id, state.selDeal);
       const last = list[list.length - 1], prev = list[list.length - 2];
-      el.querySelector(".name").textContent = person.name;
       const mood = el.querySelector(".mood"), trend = el.querySelector(".trend");
       if (!last) {
         el.querySelector(".pct").textContent = "–";
@@ -445,7 +464,6 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
         el.querySelector(".count").textContent = "";
         setNeedle(el.querySelector("svg"), 0);
         el.querySelector(".needle").style.opacity = ".25";
-        el.setAttribute("aria-label", `${person.name}: not rated yet`);
         return;
       }
       el.querySelector(".needle").style.opacity = "";
@@ -461,11 +479,8 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
       el.querySelector(".when").textContent = `${ago(last.at)}${state.selDeal === ANY ? " · " + dealName(last.dealId) : ""}`;
       el.querySelector(".count").textContent = `${list.length} rating${list.length === 1 ? "" : "s"}`;
       setNeedle(el.querySelector("svg"), last.value);
-      el.setAttribute("aria-label", `${person.name}: ${last.value} percent, ${z[3]}`);
     });
-    markActive();
   }
-  function markActive() { for (const [id, el] of cardEls) el.classList.toggle("active", id === state.selPerson); }
 
   let pendingDelete = null;
   function renderLog() {
@@ -473,68 +488,114 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
     const rows = state.ratings.filter((r) => state.selDeal === ANY || r.dealId === state.selDeal).sort(byTime).reverse().slice(0, 50);
     $("logCount").textContent = state.ratings.length ? `${state.ratings.length} ratings` : "";
     if (!rows.length) {
-      $("logBody").innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center; padding:20px;">No ratings yet. Every rating you log lands here.</td></tr>`;
+      $("logBody").innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center; padding:20px;">No ratings yet. Every rating lands here.</td></tr>`;
       return;
     }
     $("logBody").innerHTML = rows.map((r) => {
       const z = zoneOf(r.value);
+      const del = canRemove(r.personId)
+        ? `<button type="button" class="del${pendingDelete === r.id ? " confirm" : ""}" data-id="${esc(r.id)}" data-owner="${esc(r.personId)}">${pendingDelete === r.id ? "Delete?" : "Remove"}</button>` : "";
       return `<tr>
         <td class="num" style="white-space:nowrap;">${esc(fmtWhen(r.at))}</td>
-        <td>${esc(names[r.personId] || "Removed friend")}</td>
+        <td>${esc(names[r.personId] || "Someone who left")}</td>
         <td>${esc(dealName(r.dealId))}</td>
         <td><span class="pill" style="background: color-mix(in srgb, var(${z[2]}) 22%, transparent);">${r.value}%</span></td>
         <td class="note">${esc(r.note || "")}</td>
-        <td style="text-align:right;"><button type="button" class="del${pendingDelete === r.id ? " confirm" : ""}" data-id="${esc(r.id)}">${pendingDelete === r.id ? "Delete?" : "Remove"}</button></td>
+        <td style="text-align:right;">${del}</td>
       </tr>`;
     }).join("");
   }
 
-  function renderAll() { renderPickers(); renderDeals(); renderCrew(); renderLog(); }
+  function renderOwnerTools() {
+    $("ownerTools").hidden = !state.isOwner;
+    if (!state.isOwner) return;
+    const ppl = sortedPeople();
+    fillSelect($("rmPerson"), ppl.length ? ppl.map((p) => [p.id, p.name]) : [["", "No one yet"]], $("rmPerson").value);
+    const deals = sortedDeals();
+    fillSelect($("rmDeal"), deals.length ? deals.map((d) => [d.id, d.title]) : [["", "No deals yet"]], $("rmDeal").value);
+    $("rmPersonBtn").disabled = !ppl.length;
+    $("rmDealBtn").disabled = !deals.length;
+  }
 
-  // ---------- Storage: shared db on claude.ai, in-memory elsewhere ----------
-  const mem = { people: [], deals: [], ratings: [] };
-  const mid = () => "m" + Math.random().toString(36).slice(2);
-  let store = {
-    async add(col, d) { const id = mid(); mem[col].push({ id, ...d }); sync(); return { id }; },
-    async remove(col, id) { mem[col] = mem[col].filter((x) => x.id !== id); sync(); },
-  };
-  function sync() { state.people = [...mem.people]; state.deals = [...mem.deals]; state.ratings = [...mem.ratings]; renderAll(); }
-  function showBanner(msg) { $("banner").textContent = msg; $("banner").hidden = !msg; }
+  function renderAll() { renderForm(); renderDeals(); renderCrew(); renderLog(); renderOwnerTools(); }
+
+  // ---------- Storage ----------
+  // Shared data lives under crew/<userId>: the profile doc, plus deals/ and ratings/ under it.
+  // Rules let each person write only their own crew/<userId>; only the page owner can change anyone else's.
+  const mem = {};
+  let store = memoryStore();
+  function memoryStore() {
+    state.me = "preview-you"; state.isOwner = true;
+    const uid = () => "m" + Math.random().toString(36).slice(2);
+    const bucket = (u) => (mem[u] ||= { profile: null, deals: [], ratings: [] });
+    const sync = () => {
+      state.people = Object.entries(mem).filter(([, b]) => b.profile).map(([id, b]) => ({ id, ...b.profile }));
+      state.deals = Object.entries(mem).flatMap(([o, b]) => b.deals.map((d) => ({ ...d, owner: o })));
+      state.ratings = Object.entries(mem).flatMap(([o, b]) => b.ratings.map((r) => ({ ...r, personId: o })));
+      renderAll();
+    };
+    return {
+      async setProfile(name) { const b = bucket(state.me); b.profile = { ...(b.profile || { joinedAt: new Date().toISOString() }), name }; sync(); },
+      async addDeal(d) { const id = uid(); bucket(state.me).deals.push({ id, ...d }); sync(); return id; },
+      async addRating(r) { bucket(state.me).ratings.push({ id: uid(), ...r }); sync(); },
+      async removeRating(owner, id) { bucket(owner).ratings = bucket(owner).ratings.filter((x) => x.id !== id); sync(); },
+      async removeDeal(owner, id) { bucket(owner).deals = bucket(owner).deals.filter((x) => x.id !== id); sync(); },
+      async removePerson(id) { delete mem[id]; sync(); },
+    };
+  }
+  function showBanner(t) { $("banner").textContent = t; $("banner").hidden = !t; }
 
   async function connect() {
     if (!window.claude?.use) { showBanner("Preview mode: open this page on claude.ai to save ratings for the whole crew."); return; }
     const timer = setTimeout(() => showBanner("Still connecting to the shared mood log…"), 10000);
-    const db = await window.claude.use("db");
-    if (!db) { clearTimeout(timer); showBanner("Sign in to claude.ai to see and add the crew's ratings. Anything you add now stays on this screen only."); return; }
-    let userId = "";
-    try { const u = await window.claude.use("user"); userId = u ? await u.id() : ""; } catch (_) {}
-    store = {
-      add: (col, d) => db.collection(col).add(col === "ratings" ? { ...d, loggedBy: userId } : d),
-      remove: (col, id) => db.collection(col).doc(id).delete(),
+    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    if (!db || !user) { clearTimeout(timer); showBanner("Sign in to claude.ai to see the crew and rate yourself. Anything you add now stays on this screen only."); return; }
+    state.me = await user.id();
+    state.isOwner = await user.isOwner();
+    for (const k of Object.keys(mem)) delete mem[k];
+    state.people = []; state.deals = []; state.ratings = [];
+
+    const perPerson = new Map(); // id -> {deals, ratings, unsub[]}
+    const flatten = () => {
+      state.deals = [...perPerson.entries()].flatMap(([o, b]) => b.deals.map((d) => ({ ...d, owner: o })));
+      state.ratings = [...perPerson.entries()].flatMap(([o, b]) => b.ratings.map((r) => ({ ...r, personId: o })));
+      renderAll();
     };
-    let got = 0;
-    const done = () => { if (++got >= 3) { clearTimeout(timer); showBanner(""); } };
-    const onErr = (e) => { clearTimeout(timer); showBanner(e?.code === "not_granted" ? "You can look but not rate. Ask the owner for edit access." : "Couldn't reach the shared mood log. Check your connection and refresh."); };
-    const sub = (col, keep) => db.collection(col).onSnapshot((snap) => {
-      state[col] = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter(keep);
-      renderAll(); done();
+    const onErr = (e) => { clearTimeout(timer); showBanner(e?.code === "not_granted" ? "You can look but not rate. Ask the owner to share this page with you as a Contributor or above." : "Couldn't reach the shared mood log. Check your connection and refresh."); };
+    db.collection("crew").onSnapshot((snap) => {
+      clearTimeout(timer); showBanner("");
+      state.people = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => p.name);
+      const ids = new Set(snap.docs.map((d) => d.id));
+      for (const [id, b] of perPerson) if (!ids.has(id)) { b.unsub.forEach((u) => u()); perPerson.delete(id); }
+      for (const id of ids) if (!perPerson.has(id)) {
+        const b = { deals: [], ratings: [], unsub: [] };
+        perPerson.set(id, b);
+        b.unsub.push(db.collection(`crew/${id}/deals`).onSnapshot((s) => { b.deals = s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((d) => d.title); flatten(); }, onErr));
+        b.unsub.push(db.collection(`crew/${id}/ratings`).onSnapshot((s) => { b.ratings = s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((r) => typeof r.value === "number" && r.at); flatten(); }, onErr));
+      }
+      flatten();
     }, onErr);
-    sub("people", (p) => p.name);
-    sub("deals", (d) => d.title);
-    sub("ratings", (r) => r.personId && typeof r.value === "number" && r.at);
+
+    const wipe = async (path) => { const s = await db.collection(path).get(); for (const d of s.docs) await db.doc(`${path}/${d.id}`).delete(); };
+    store = {
+      async setProfile(name) {
+        const ref = db.doc(`crew/${state.me}`);
+        if (myProfile()) await ref.update({ name }); else await ref.set({ name, joinedAt: new Date().toISOString() });
+      },
+      async addDeal(d) { return (await db.collection(`crew/${state.me}/deals`).add(d)).id; },
+      async addRating(r) { await db.collection(`crew/${state.me}/ratings`).add(r); },
+      removeRating: (owner, id) => db.doc(`crew/${owner}/ratings/${id}`).delete(),
+      removeDeal: (owner, id) => db.doc(`crew/${owner}/deals/${id}`).delete(),
+      async removePerson(id) { await wipe(`crew/${id}/ratings`); await wipe(`crew/${id}/deals`); await db.doc(`crew/${id}`).delete(); },
+    };
+    renderAll();
   }
 
   // ---------- Events ----------
-  $("ratePerson").addEventListener("change", (e) => {
-    state.selPerson = e.target.value; markActive();
-    const dealId = $("rateDeal").value;
-    const last = ratingsFor(state.selPerson, dealId === NEW ? ANY : dealId).pop();
-    if (last) setValue(last.value);
-  });
   $("rateDeal").addEventListener("change", (e) => {
     $("newDealWrap").hidden = e.target.value !== NEW;
     if (e.target.value === NEW) $("newDeal").focus();
-    else { const last = ratingsFor(state.selPerson, e.target.value).pop(); if (last) setValue(last.value); }
+    else { const last = ratingsFor(state.me, e.target.value).pop(); if (last) setValue(last.value); }
   });
   $("deals").addEventListener("click", (e) => {
     const b = e.target.closest(".deal"); if (!b) return;
@@ -546,43 +607,38 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
 
   $("rateForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const personId = $("ratePerson").value;
-    if (!personId) { $("formMsg").textContent = "Add a friend first, then rate them."; return; }
+    if (!myProfile()) { msg("Join the board first, then rate yourself."); $("joinName").focus(); return; }
     let dealId = $("rateDeal").value;
     $("rateBtn").disabled = true;
     try {
       if (dealId === NEW) {
         const title = $("newDeal").value.trim();
-        if (!title) { $("formMsg").textContent = "Give the new deal a name first."; $("newDeal").focus(); $("rateBtn").disabled = false; return; }
+        if (!title) { msg("Give the new deal a name first."); $("newDeal").focus(); $("rateBtn").disabled = false; return; }
         const existing = state.deals.find((d) => d.title.toLowerCase() === title.toLowerCase());
-        dealId = existing ? existing.id : (await store.add("deals", { title, createdAt: new Date().toISOString() })).id;
+        dealId = existing ? existing.id : await store.addDeal({ title, createdAt: new Date().toISOString() });
         $("newDeal").value = "";
       }
-      const prev = ratingsFor(personId, dealId).pop();
-      await store.add("ratings", { personId, dealId, value: state.value, note: $("rateNote").value.trim(), at: new Date().toISOString() });
+      const prev = ratingsFor(state.me, dealId).pop();
+      await store.addRating({ dealId, value: state.value, note: $("rateNote").value.trim(), at: new Date().toISOString() });
       $("rateNote").value = "";
-      state.selPerson = personId;
-      if (state.selDeal !== ANY) state.selDeal = dealId;
-      renderAll();
       $("rateDeal").value = dealId; $("newDealWrap").hidden = true;
-      const name = state.people.find((p) => p.id === personId)?.name || "They";
       const d = prev ? state.value - prev.value : 0;
-      $("formMsg").textContent = `Logged ${name} at ${state.value}% on ${dealName(dealId)}` + (prev ? (d ? ` (${d > 0 ? "up" : "down"} ${Math.abs(d)} from last time).` : " (same as last time).") : ".");
-    } catch (err) { $("formMsg").textContent = "Couldn't save that rating: " + (err?.message || "try again."); }
-    $("rateBtn").disabled = !state.people.length;
+      msg(`Logged ${state.value}% on ${dealName(dealId)}` + (prev ? (d ? ` (${d > 0 ? "up" : "down"} ${Math.abs(d)} from last time).` : " (same as last time).") : "."));
+    } catch (err) { msg("Couldn't save that rating. " + (err?.code === "not_granted" ? "You need Contributor access or above." : (err?.message || "Try again."))); }
+    $("rateBtn").disabled = !myProfile();
   });
 
-  $("friendForm").addEventListener("submit", async (e) => {
+  $("joinForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const name = $("friendName").value.trim();
-    if (!name) { $("friendName").focus(); return; }
-    if (state.people.some((p) => p.name.toLowerCase() === name.toLowerCase())) { $("formMsg").textContent = `${name} is already on the board.`; return; }
+    const name = $("joinName").value.trim();
+    if (!name) { $("joinName").focus(); return; }
+    if (state.people.some((p) => p.id !== state.me && p.name.toLowerCase() === name.toLowerCase())) { msg(`Someone is already on the board as ${name}. Pick another name.`); return; }
+    const joining = !myProfile();
     try {
-      const ref = await store.add("people", { name, createdAt: new Date().toISOString() });
-      $("friendName").value = "";
-      state.selPerson = ref?.id || state.selPerson; renderPickers();
-      $("formMsg").textContent = `Added ${name}. Drag the dial to give them a first rating.`;
-    } catch (err) { $("formMsg").textContent = "Couldn't add that friend: " + (err?.message || "try again."); }
+      await store.setProfile(name);
+      $("joinName").value = "";
+      msg(joining ? `Welcome, ${name}. Drag the dial and log your first rating.` : `You're now ${name} on the board.`);
+    } catch (err) { msg("Couldn't save your name. " + (err?.code === "not_granted" ? "You need Contributor access or above." : (err?.message || "Try again."))); }
   });
 
   $("logBody").addEventListener("click", async (e) => {
@@ -590,9 +646,32 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
     const id = btn.dataset.id;
     if (pendingDelete !== id) { pendingDelete = id; renderLog(); setTimeout(() => { if (pendingDelete === id) { pendingDelete = null; renderLog(); } }, 4000); return; }
     pendingDelete = null;
-    try { await store.remove("ratings", id); } catch (_) { $("formMsg").textContent = "Couldn't remove that rating."; }
+    try { await store.removeRating(btn.dataset.owner, id); } catch (_) { msg("Couldn't remove that rating."); }
     renderLog();
   });
+
+  // Owner tools: every action needs a second click within 4 seconds.
+  function twoStep(btn, label, armedLabel, action) {
+    btn.addEventListener("click", async () => {
+      if (!btn.classList.contains("armed")) {
+        btn.classList.add("armed"); btn.textContent = armedLabel();
+        setTimeout(() => { btn.classList.remove("armed"); btn.textContent = label; }, 4000);
+        return;
+      }
+      btn.classList.remove("armed"); btn.textContent = "Working…"; btn.disabled = true;
+      try { await action(); } catch (err) { msg("That didn't work: " + (err?.message || err?.code || "try again.")); }
+      btn.textContent = label; btn.disabled = false; renderOwnerTools();
+    });
+  }
+  twoStep($("rmPersonBtn"), "Remove friend",
+    () => `Remove ${state.people.find((p) => p.id === $("rmPerson").value)?.name || "them"} and their ratings?`,
+    async () => { const p = state.people.find((x) => x.id === $("rmPerson").value); if (!p) return; await store.removePerson(p.id); msg(`Removed ${p.name} and their ratings.`); });
+  twoStep($("rmDealBtn"), "Remove deal",
+    () => "Click again to remove this deal",
+    async () => { const d = state.deals.find((x) => x.id === $("rmDeal").value); if (!d) return; await store.removeDeal(d.owner, d.id); if (state.selDeal === d.id) state.selDeal = ANY; msg(`Removed "${d.title}". Its ratings stay in the log as "Removed deal".`); });
+  twoStep($("clearBtn"), "Clear everything",
+    () => "Click again to delete every rating, deal and friend",
+    async () => { for (const p of [...state.people]) await store.removePerson(p.id); state.selDeal = ANY; msg("Cleared. The board is empty."); });
 
   $("exportBtn").addEventListener("click", async () => {
     const names = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
@@ -603,10 +682,10 @@ td.note { overflow-wrap: anywhere; color: var(--muted); }
     const dl = window.claude?.use ? await window.claude.use("downloads") : null;
     if (dl) {
       try { await dl.save({ filename: `deal-dial-${new Date().toISOString().slice(0, 10)}.csv`, data: csv }); }
-      catch (err) { if (err?.code !== "declined") $("formMsg").textContent = "Couldn't save the file: " + (err?.message || err?.code); }
+      catch (err) { if (err?.code !== "declined") msg("Couldn't save the file: " + (err?.message || err?.code)); }
     } else {
-      try { await navigator.clipboard.writeText(csv); $("formMsg").textContent = "Copied the CSV to your clipboard."; }
-      catch (_) { $("formMsg").textContent = "Export isn't available in this view."; }
+      try { await navigator.clipboard.writeText(csv); msg("Copied the CSV to your clipboard."); }
+      catch (_) { msg("Export isn't available in this view."); }
     }
   });
 
