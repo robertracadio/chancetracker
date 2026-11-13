@@ -10,3 +10,12 @@ overall chance. Invites lose half their weight every 90 days; a flake counts as 
 `index.html` is the whole app. It's hosted as a claude.ai artifact, which keeps the shared
 log in the artifact's database. Opened anywhere else it runs in preview mode with nothing saved.
 Use **Export CSV** on the hosted page to back up the data.
+
+## Deal Dial
+
+`deal-dial.html` is the mood-tracker version. You rate each friend's chance of taking a deal
+yourself (drag the dial, 0–100%) and can rate again whenever their mood changes. Deals are
+named offers ("Cabin in March, $180 each"); each deal shows the crew's average of everyone's
+latest rating. Each friend gets a dial with their latest rating, its change from the previous
+one, and a line of past ratings. Like the tracker, it's hosted as a claude.ai artifact with
+a shared database, and Export CSV backs up the data.

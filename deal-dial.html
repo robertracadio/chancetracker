@@ -1,0 +1,617 @@
+<title>Deal Dial</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap">
+<style>
+/* Layout: a mood check-in for deals. Drag the big dial to rate, deals on the table beside it, then each friend's dial with a mood line of their past ratings. */
+:root {
+  --bg: #EDF1F7;
+  --panel: #FFFFFF;
+  --ink: #172033;
+  --muted: #5A6580;
+  --line: #D3DAE6;
+  --face: #F6F8FC;
+  --accent: #FF5A36;
+  --z1: #E5484D; --z2: #F2833A; --z3: #F2BE22; --z4: #86C23A; --z5: #2BA463;
+  --font-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --font-body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1420; --panel: #171F31; --ink: #E7ECF6; --muted: #93A0BA; --line: #2A3550; --face: #1D2740;
+    --accent: #FF6E4D; --z1: #F0585D; --z2: #F7924A; --z3: #F7CB3E; --z4: #97D24C; --z5: #3CBB76;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1420; --panel: #171F31; --ink: #E7ECF6; --muted: #93A0BA; --line: #2A3550; --face: #1D2740;
+  --accent: #FF6E4D; --z1: #F0585D; --z2: #F7924A; --z3: #F7CB3E; --z4: #97D24C; --z5: #3CBB76;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 800; }
+h2 { font-size: 22px; font-weight: 700; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.muted { color: var(--muted); }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 60ch; }
+.banner { background: var(--face); border: 1px dashed var(--line); border-radius: 10px; padding: 10px 14px; font-size: 14px; color: var(--muted); }
+
+.top { display: grid; grid-template-columns: 1.15fr 1fr; gap: 20px; }
+@media (max-width: 820px) { .top { grid-template-columns: 1fr; } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px; min-width: 0; }
+.stack { display: grid; gap: 14px; align-content: start; }
+
+/* Forms */
+label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); }
+input, select, button { font: inherit; color: inherit; }
+input[type="text"], select {
+  width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--face); color: var(--ink); font-weight: 500; font-size: 15px;
+}
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; }
+.row > label { flex: 1 1 160px; }
+.btn {
+  border: 0; border-radius: 999px; padding: 11px 20px; font-weight: 600; cursor: pointer;
+  background: var(--accent); color: #fff; transition: transform .12s ease, filter .12s ease;
+}
+.btn:hover { filter: brightness(1.06); }
+.btn:active { transform: scale(.97); }
+.btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn.small { padding: 6px 12px; font-size: 13px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.form-msg { font-size: 14px; min-height: 1.5em; color: var(--muted); }
+
+/* Big dial */
+.dial-box { position: relative; touch-action: none; }
+.big-gauge { width: 100%; max-width: 440px; margin: 0 auto; display: block; cursor: grab; user-select: none; -webkit-user-select: none; }
+.big-gauge.dragging { cursor: grabbing; }
+.drag-hint { text-align: center; font-size: 12px; color: var(--muted); margin-top: -4px; }
+.readout { text-align: center; display: grid; gap: 2px; }
+.readout .pct { font-family: var(--font-display); font-weight: 800; font-size: clamp(48px, 9vw, 72px); line-height: 1; font-variant-numeric: tabular-nums; }
+.readout .mood { font-family: var(--font-display); font-weight: 700; font-size: 22px; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+.rate-actions { display: flex; gap: 10px; align-items: end; }
+.rate-actions label { flex: 1; min-width: 0; }
+
+/* Deals */
+.deals { display: grid; gap: 8px; }
+.deal {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; text-align: left;
+  padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--face); cursor: pointer; width: 100%;
+}
+.deal:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.deal.active { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.deal .t { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+.deal .v { font-family: var(--font-mono); font-size: 15px; }
+.deal .bar { grid-column: 1 / -1; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.deal .bar i { display: block; height: 100%; border-radius: 99px; transition: width .6s ease; }
+.deal .sub { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.add-inline { display: flex; gap: 8px; }
+.add-inline input { flex: 1; min-width: 0; }
+.divider { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+
+/* Crew */
+.section-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.crew { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 6px; cursor: pointer; text-align: left; transition: transform .15s ease, border-color .15s ease; }
+.card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.card.active { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+.card .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.card .name { font-family: var(--font-display); font-weight: 700; font-size: 18px; overflow-wrap: anywhere; }
+.card .pct { font-family: var(--font-mono); font-size: 18px; }
+.card .mood { font-weight: 600; font-size: 14px; }
+.card .note { font-size: 13px; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
+.card .meta .count { white-space: nowrap; }
+.card .meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.trend.up { color: var(--z5); }
+.trend.down { color: var(--z1); }
+.mini-gauge { width: 100%; display: block; }
+.spark { width: 100%; height: 52px; display: block; overflow: visible; }
+.spark-line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.spark-area { fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: none; }
+.spark-mid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+.spark-dot { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
+.spark-hit { fill: transparent; }
+.spark-label { font-size: 11px; color: var(--muted); display: flex; justify-content: space-between; }
+.empty { border: 2px dashed var(--line); border-radius: 16px; padding: 28px 20px; text-align: center; color: var(--muted); grid-column: 1 / -1; }
+.empty strong { color: var(--ink); font-family: var(--font-display); font-size: 18px; display: block; margin-bottom: 4px; }
+
+/* Log */
+.log-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 560px; }
+th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+td.note { overflow-wrap: anywhere; color: var(--muted); }
+.pill { font-family: var(--font-mono); font-size: 13px; padding: 2px 9px; border-radius: 999px; white-space: nowrap; color: var(--ink); }
+.del { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 13px; padding: 4px 6px; border-radius: 6px; }
+.del:hover { color: var(--z1); }
+.del.confirm { color: #fff; background: var(--z1); }
+
+/* Gauge parts */
+.needle { transform-box: view-box; transform-origin: 100px 100px; transition: transform 1s cubic-bezier(.34, 1.56, .64, 1); }
+.dragging .needle { transition: none; }
+.gauge-tick { stroke: var(--muted); stroke-width: 1.2; }
+.gauge-label { fill: var(--muted); font-family: var(--font-mono); font-size: 9px; }
+@media (prefers-reduced-motion: reduce) { .needle, .card, .btn, .deal .bar i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">How in are we?</div>
+      <h1>Deal Dial</h1>
+      <p>Drag the dial to say how likely someone is to take a deal. Rate again whenever the mood shifts, and watch it move over time.</p>
+    </div>
+    <button class="btn ghost small" id="exportBtn" type="button">Export CSV</button>
+  </header>
+  <div class="banner" id="banner" hidden></div>
+
+  <section class="top">
+    <form class="panel stack" id="rateForm" autocomplete="off" aria-labelledby="rateTitle">
+      <div>
+        <div class="eyebrow">Check in</div>
+        <h2 id="rateTitle">Rate it</h2>
+      </div>
+      <div class="row">
+        <label for="ratePerson">Who
+          <select id="ratePerson"></select>
+        </label>
+        <label for="rateDeal">On which deal
+          <select id="rateDeal"></select>
+        </label>
+      </div>
+      <label for="newDeal" id="newDealWrap" hidden>Name the deal
+        <input type="text" id="newDeal" maxlength="60" placeholder="Split a cabin in March, $180 each">
+      </label>
+      <div class="dial-box">
+        <svg class="big-gauge" id="bigGauge" viewBox="0 0 200 122" aria-hidden="true"></svg>
+      </div>
+      <div class="drag-hint">Drag the needle or use the slider</div>
+      <div class="readout" aria-live="polite">
+        <div class="pct" id="bigPct">50%</div>
+        <div class="mood" id="bigMood">On the fence</div>
+      </div>
+      <label for="rateValue">Chance they take it
+        <input type="range" id="rateValue" min="0" max="100" step="1" value="50">
+      </label>
+      <div class="rate-actions">
+        <label for="rateNote">Why (optional)
+          <input type="text" id="rateNote" maxlength="100" placeholder="Wants to check flights first">
+        </label>
+        <button class="btn" type="submit" id="rateBtn">Log rating</button>
+      </div>
+      <div class="form-msg" id="formMsg" role="status"></div>
+    </form>
+
+    <div class="panel stack" aria-labelledby="dealsTitle">
+      <div>
+        <div class="eyebrow">On the table</div>
+        <h2 id="dealsTitle">Deals</h2>
+      </div>
+      <div class="deals" id="deals"></div>
+      <hr class="divider">
+      <form id="friendForm" autocomplete="off">
+        <label for="friendName">Add a friend
+          <span class="add-inline">
+            <input type="text" id="friendName" maxlength="30" placeholder="Name">
+            <button class="btn ghost" type="submit">Add</button>
+          </span>
+        </label>
+      </form>
+    </div>
+  </section>
+
+  <section aria-labelledby="crewTitle">
+    <div class="section-head">
+      <h2 id="crewTitle">The crew</h2>
+      <span class="muted" style="font-size:14px;" id="crewSub">Latest rating on any deal</span>
+    </div>
+    <div class="crew" id="crew"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="logTitle">
+    <div class="section-head">
+      <h2 id="logTitle">Mood log</h2>
+      <span class="muted num" id="logCount" style="font-size:14px;"></span>
+    </div>
+    <div class="log-wrap">
+      <table>
+        <thead><tr><th>When</th><th>Who</th><th>Deal</th><th>Rating</th><th>Why</th><th></th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const ZONES = [
+    [0, 20, "--z1", "No way"],
+    [20, 40, "--z2", "Doubtful"],
+    [40, 60, "--z3", "On the fence"],
+    [60, 80, "--z4", "Leaning yes"],
+    [80, 101, "--z5", "I'm in"],
+  ];
+  const zoneOf = (v) => ZONES.find((z) => v >= z[0] && v < z[1]) || ZONES[4];
+  const ANY = "__any", NEW = "__new";
+
+  const state = { people: [], deals: [], ratings: [], value: 50, selPerson: "", selDeal: ANY };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const byTime = (a, b) => (a.at || "").localeCompare(b.at || "");
+  function ago(iso) {
+    const s = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + "m ago";
+    if (s < 86400) return Math.floor(s / 3600) + "h ago";
+    if (s < 86400 * 30) return Math.floor(s / 86400) + "d ago";
+    return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+  const fmtWhen = (iso) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+  // ---------- Gauge ----------
+  const CX = 100, CY = 100, R = 80;
+  const pt = (p, r) => { const a = Math.PI * (1 - p); return [CX + r * Math.cos(a), CY - r * Math.sin(a)]; };
+  function arc(p0, p1, r) {
+    const [x0, y0] = pt(p0, r), [x1, y1] = pt(p1, r);
+    return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+  }
+  function gaugeMarkup(big) {
+    let s = `<path d="${arc(0, 1, R)}" fill="none" stroke="var(--face)" stroke-width="${big ? 22 : 20}" stroke-linecap="round"/>`;
+    ZONES.forEach(([a, b, c], i) => {
+      const gap = 0.006;
+      s += `<path d="${arc(a / 100 + (i ? gap : 0), Math.min(b, 100) / 100 - (i < 4 ? gap : 0), R)}" fill="none" stroke="var(${c})" stroke-width="${big ? 16 : 14}"/>`;
+    });
+    for (let k = 0; k <= 10; k++) {
+      const [x0, y0] = pt(k / 10, R - 13), [x1, y1] = pt(k / 10, R - (k % 5 === 0 ? 22 : 18));
+      s += `<line class="gauge-tick" x1="${x0.toFixed(2)}" y1="${y0.toFixed(2)}" x2="${x1.toFixed(2)}" y2="${y1.toFixed(2)}"/>`;
+    }
+    if (big) {
+      s += `<text class="gauge-label" x="${pt(0, R)[0]}" y="116" text-anchor="middle">0</text>`;
+      s += `<text class="gauge-label" x="100" y="8" text-anchor="middle">50</text>`;
+      s += `<text class="gauge-label" x="${pt(1, R)[0]}" y="116" text-anchor="middle">100</text>`;
+    }
+    s += `<g class="needle" style="transform: rotate(-90deg)">
+      <path d="M100 ${CY - R + 8} L104 100 L96 100 Z" fill="var(--accent)"/>
+      <line x1="100" y1="100" x2="100" y2="110" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <circle cx="100" cy="100" r="${big ? 8 : 9}" fill="var(--ink)"/>
+    <circle cx="100" cy="100" r="3" fill="var(--panel)"/>`;
+    return s;
+  }
+  function setNeedle(svg, v, now) {
+    const n = svg.querySelector(".needle");
+    const t = `rotate(${(-90 + 1.8 * Math.max(0, Math.min(100, v))).toFixed(1)}deg)`;
+    if (now) n.style.transform = t; else requestAnimationFrame(() => { n.style.transform = t; });
+  }
+
+  // ---------- Big dial: drag + slider ----------
+  const big = $("bigGauge");
+  big.innerHTML = gaugeMarkup(true);
+  function setValue(v, now) {
+    v = Math.round(Math.max(0, Math.min(100, v)));
+    state.value = v;
+    setNeedle(big, v, now);
+    $("rateValue").value = v;
+    $("bigPct").textContent = v + "%";
+    const z = zoneOf(v);
+    $("bigMood").textContent = z[3];
+    $("bigMood").style.color = `var(${z[2]})`;
+  }
+  function valueFromPointer(e) {
+    const m = big.getScreenCTM(); if (!m) return state.value;
+    const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+    const dy = Math.max(0, CY - p.y), dx = p.x - CX;
+    if (dy === 0) return dx < 0 ? 0 : 100;
+    return (1 - Math.atan2(dy, dx) / Math.PI) * 100;
+  }
+  big.addEventListener("pointerdown", (e) => {
+    big.setPointerCapture(e.pointerId); big.classList.add("dragging");
+    setValue(valueFromPointer(e), true);
+  });
+  big.addEventListener("pointermove", (e) => { if (big.classList.contains("dragging")) setValue(valueFromPointer(e), true); });
+  const endDrag = () => big.classList.remove("dragging");
+  big.addEventListener("pointerup", endDrag);
+  big.addEventListener("pointercancel", endDrag);
+  $("rateValue").addEventListener("input", (e) => setValue(+e.target.value, true));
+
+  // ---------- Derived data ----------
+  const sortedPeople = () => [...state.people].sort((a, b) => a.name.localeCompare(b.name));
+  const sortedDeals = () => [...state.deals].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  const dealName = (id) => state.deals.find((d) => d.id === id)?.title || (id ? "Removed deal" : "General");
+  function ratingsFor(personId, dealId) {
+    return state.ratings.filter((r) => r.personId === personId && (dealId === ANY || r.dealId === dealId)).sort(byTime);
+  }
+  function dealSummary(dealId) {
+    const latest = new Map();
+    state.ratings.filter((r) => r.dealId === dealId).sort(byTime).forEach((r) => latest.set(r.personId, r));
+    const vals = [...latest.values()].map((r) => r.value);
+    return { avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null, n: vals.length };
+  }
+
+  // ---------- Rendering ----------
+  function fillSelect(sel, options, value) {
+    sel.innerHTML = options.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
+    if (options.some(([v]) => v === value)) sel.value = value;
+  }
+  function renderPickers() {
+    const ppl = sortedPeople().map((p) => [p.id, p.name]);
+    if (!ppl.some(([id]) => id === state.selPerson)) state.selPerson = ppl[0]?.[0] || "";
+    fillSelect($("ratePerson"), ppl.length ? ppl : [["", "Add a friend first"]], state.selPerson);
+    const cur = $("rateDeal").value;
+    const opts = [...sortedDeals().map((d) => [d.id, d.title]), ["", "General vibe (no deal)"], [NEW, "+ New deal…"]];
+    let want = cur && cur !== NEW ? cur : (state.selDeal !== ANY ? state.selDeal : (opts[0][0] === NEW ? "" : opts[0][0]));
+    if (cur === NEW) want = NEW;
+    fillSelect($("rateDeal"), opts, want);
+    $("newDealWrap").hidden = $("rateDeal").value !== NEW;
+    $("rateBtn").disabled = !ppl.length;
+  }
+
+  function renderDeals() {
+    const box = $("deals");
+    const rows = [[ANY, "Latest on anything", null]];
+    sortedDeals().forEach((d) => rows.push([d.id, d.title, dealSummary(d.id)]));
+    if (state.ratings.some((r) => !r.dealId)) rows.push(["", "General vibe", dealSummary("")]);
+    box.innerHTML = rows.map(([id, title, s]) => {
+      const active = id === state.selDeal ? " active" : "";
+      if (!s) return `<button type="button" class="deal${active}" data-id="${esc(id)}"><span class="t">${esc(title)}</span><span class="v muted">All</span><span class="sub">Each friend's most recent rating</span></button>`;
+      const v = s.avg == null ? null : Math.round(s.avg);
+      const z = v == null ? null : zoneOf(v);
+      return `<button type="button" class="deal${active}" data-id="${esc(id)}">
+        <span class="t">${esc(title)}</span><span class="v">${v == null ? "–" : v + "%"}</span>
+        <span class="bar"><i style="width:${v ?? 0}%; background: var(${z ? z[2] : "--line"})"></i></span>
+        <span class="sub">${s.n ? `Crew average from ${s.n} friend${s.n === 1 ? "" : "s"} · ${z[3]}` : "No ratings yet"}</span>
+      </button>`;
+    }).join("");
+    if (!state.deals.length) box.insertAdjacentHTML("beforeend", `<div class="muted" style="font-size:14px;">No deals yet. Pick "+ New deal…" when you rate to put one on the table.</div>`);
+  }
+
+  function sparkline(list) {
+    const W = 160, H = 52, pad = 4;
+    const pts = list.slice(-12);
+    const x = (i) => pts.length === 1 ? W / 2 : pad + (i * (W - 2 * pad)) / (pts.length - 1);
+    const y = (v) => H - 2 - (v / 100) * (H - 4);
+    let s = `<line class="spark-mid" x1="0" x2="${W}" y1="${y(50)}" y2="${y(50)}"/>`;
+    if (pts.length > 1) {
+      const line = pts.map((r, i) => `${x(i).toFixed(1)},${y(r.value).toFixed(1)}`).join(" ");
+      s += `<polygon class="spark-area" points="${x(0).toFixed(1)},${H} ${line} ${x(pts.length - 1).toFixed(1)},${H}"/>`;
+      s += `<polyline class="spark-line" points="${line}"/>`;
+    }
+    const last = pts[pts.length - 1];
+    s += `<circle class="spark-dot" cx="${x(pts.length - 1).toFixed(1)}" cy="${y(last.value).toFixed(1)}" r="3.5"/>`;
+    pts.forEach((r, i) => { s += `<circle class="spark-hit" cx="${x(i).toFixed(1)}" cy="${y(r.value).toFixed(1)}" r="7"><title>${esc(fmtWhen(r.at))}: ${r.value}% on ${esc(dealName(r.dealId))}</title></circle>`; });
+    return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Mood line of ratings over time">${s}</svg>`;
+  }
+
+  const cardEls = new Map();
+  function renderCrew() {
+    const crew = $("crew");
+    $("crewSub").textContent = state.selDeal === ANY ? "Latest rating on any deal" : `On: ${dealName(state.selDeal)}`;
+    const ppl = sortedPeople();
+    if (!ppl.length) {
+      cardEls.clear();
+      crew.innerHTML = `<div class="empty"><strong>No one on the board yet</strong>Add a friend on the right, then drag the dial to give them their first rating.</div>`;
+      return;
+    }
+    crew.querySelector(".empty")?.remove();
+    for (const [id, el] of cardEls) if (!ppl.some((p) => p.id === id)) { el.remove(); cardEls.delete(id); }
+    ppl.forEach((person) => {
+      let el = cardEls.get(person.id);
+      if (!el) {
+        el = document.createElement("button");
+        el.type = "button"; el.className = "card";
+        el.innerHTML = `<div class="head"><span class="name"></span><span class="pct num"></span></div>
+          <svg class="mini-gauge" viewBox="0 0 200 112" aria-hidden="true">${gaugeMarkup(false)}</svg>
+          <div class="head"><span class="mood"></span><span class="trend num" style="font-size:13px;"></span></div>
+          <div class="sparkbox"></div><div class="note"></div><div class="meta"><span class="when"></span><span class="count"></span></div>`;
+        el.addEventListener("click", () => {
+          state.selPerson = person.id; $("ratePerson").value = person.id;
+          const last = ratingsFor(person.id, state.selDeal).pop();
+          if (last) setValue(last.value);
+          markActive();
+          $("rateTitle").scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        cardEls.set(person.id, el);
+      }
+      crew.appendChild(el);
+      const list = ratingsFor(person.id, state.selDeal);
+      const last = list[list.length - 1], prev = list[list.length - 2];
+      el.querySelector(".name").textContent = person.name;
+      const mood = el.querySelector(".mood"), trend = el.querySelector(".trend");
+      if (!last) {
+        el.querySelector(".pct").textContent = "–";
+        mood.textContent = "Not rated yet"; mood.style.color = "var(--muted)";
+        trend.textContent = ""; trend.className = "trend num";
+        el.querySelector(".sparkbox").innerHTML = "";
+        el.querySelector(".note").textContent = "";
+        el.querySelector(".when").textContent = state.selDeal === ANY ? "No ratings" : "No ratings on this deal";
+        el.querySelector(".count").textContent = "";
+        setNeedle(el.querySelector("svg"), 0);
+        el.querySelector(".needle").style.opacity = ".25";
+        el.setAttribute("aria-label", `${person.name}: not rated yet`);
+        return;
+      }
+      el.querySelector(".needle").style.opacity = "";
+      const z = zoneOf(last.value);
+      el.querySelector(".pct").textContent = last.value + "%";
+      mood.textContent = z[3]; mood.style.color = `var(${z[2]})`;
+      const d = prev ? last.value - prev.value : 0;
+      trend.textContent = prev ? (d > 0 ? `▲ ${d}` : d < 0 ? `▼ ${-d}` : "no change") : "";
+      trend.className = "trend num" + (d > 0 ? " up" : d < 0 ? " down" : "");
+      trend.title = prev ? `Change since the rating before (${prev.value}%)` : "";
+      el.querySelector(".sparkbox").innerHTML = list.length > 1 ? sparkline(list) : "";
+      el.querySelector(".note").textContent = last.note ? `"${last.note}"` : "";
+      el.querySelector(".when").textContent = `${ago(last.at)}${state.selDeal === ANY ? " · " + dealName(last.dealId) : ""}`;
+      el.querySelector(".count").textContent = `${list.length} rating${list.length === 1 ? "" : "s"}`;
+      setNeedle(el.querySelector("svg"), last.value);
+      el.setAttribute("aria-label", `${person.name}: ${last.value} percent, ${z[3]}`);
+    });
+    markActive();
+  }
+  function markActive() { for (const [id, el] of cardEls) el.classList.toggle("active", id === state.selPerson); }
+
+  let pendingDelete = null;
+  function renderLog() {
+    const names = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
+    const rows = state.ratings.filter((r) => state.selDeal === ANY || r.dealId === state.selDeal).sort(byTime).reverse().slice(0, 50);
+    $("logCount").textContent = state.ratings.length ? `${state.ratings.length} ratings` : "";
+    if (!rows.length) {
+      $("logBody").innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center; padding:20px;">No ratings yet. Every rating you log lands here.</td></tr>`;
+      return;
+    }
+    $("logBody").innerHTML = rows.map((r) => {
+      const z = zoneOf(r.value);
+      return `<tr>
+        <td class="num" style="white-space:nowrap;">${esc(fmtWhen(r.at))}</td>
+        <td>${esc(names[r.personId] || "Removed friend")}</td>
+        <td>${esc(dealName(r.dealId))}</td>
+        <td><span class="pill" style="background: color-mix(in srgb, var(${z[2]}) 22%, transparent);">${r.value}%</span></td>
+        <td class="note">${esc(r.note || "")}</td>
+        <td style="text-align:right;"><button type="button" class="del${pendingDelete === r.id ? " confirm" : ""}" data-id="${esc(r.id)}">${pendingDelete === r.id ? "Delete?" : "Remove"}</button></td>
+      </tr>`;
+    }).join("");
+  }
+
+  function renderAll() { renderPickers(); renderDeals(); renderCrew(); renderLog(); }
+
+  // ---------- Storage: shared db on claude.ai, in-memory elsewhere ----------
+  const mem = { people: [], deals: [], ratings: [] };
+  const mid = () => "m" + Math.random().toString(36).slice(2);
+  let store = {
+    async add(col, d) { const id = mid(); mem[col].push({ id, ...d }); sync(); return { id }; },
+    async remove(col, id) { mem[col] = mem[col].filter((x) => x.id !== id); sync(); },
+  };
+  function sync() { state.people = [...mem.people]; state.deals = [...mem.deals]; state.ratings = [...mem.ratings]; renderAll(); }
+  function showBanner(msg) { $("banner").textContent = msg; $("banner").hidden = !msg; }
+
+  async function connect() {
+    if (!window.claude?.use) { showBanner("Preview mode: open this page on claude.ai to save ratings for the whole crew."); return; }
+    const timer = setTimeout(() => showBanner("Still connecting to the shared mood log…"), 10000);
+    const db = await window.claude.use("db");
+    if (!db) { clearTimeout(timer); showBanner("Sign in to claude.ai to see and add the crew's ratings. Anything you add now stays on this screen only."); return; }
+    let userId = "";
+    try { const u = await window.claude.use("user"); userId = u ? await u.id() : ""; } catch (_) {}
+    store = {
+      add: (col, d) => db.collection(col).add(col === "ratings" ? { ...d, loggedBy: userId } : d),
+      remove: (col, id) => db.collection(col).doc(id).delete(),
+    };
+    let got = 0;
+    const done = () => { if (++got >= 3) { clearTimeout(timer); showBanner(""); } };
+    const onErr = (e) => { clearTimeout(timer); showBanner(e?.code === "not_granted" ? "You can look but not rate. Ask the owner for edit access." : "Couldn't reach the shared mood log. Check your connection and refresh."); };
+    const sub = (col, keep) => db.collection(col).onSnapshot((snap) => {
+      state[col] = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter(keep);
+      renderAll(); done();
+    }, onErr);
+    sub("people", (p) => p.name);
+    sub("deals", (d) => d.title);
+    sub("ratings", (r) => r.personId && typeof r.value === "number" && r.at);
+  }
+
+  // ---------- Events ----------
+  $("ratePerson").addEventListener("change", (e) => {
+    state.selPerson = e.target.value; markActive();
+    const dealId = $("rateDeal").value;
+    const last = ratingsFor(state.selPerson, dealId === NEW ? ANY : dealId).pop();
+    if (last) setValue(last.value);
+  });
+  $("rateDeal").addEventListener("change", (e) => {
+    $("newDealWrap").hidden = e.target.value !== NEW;
+    if (e.target.value === NEW) $("newDeal").focus();
+    else { const last = ratingsFor(state.selPerson, e.target.value).pop(); if (last) setValue(last.value); }
+  });
+  $("deals").addEventListener("click", (e) => {
+    const b = e.target.closest(".deal"); if (!b) return;
+    state.selDeal = b.dataset.id;
+    if (state.selDeal !== ANY) $("rateDeal").value = state.selDeal;
+    $("newDealWrap").hidden = $("rateDeal").value !== NEW;
+    renderDeals(); renderCrew(); renderLog();
+  });
+
+  $("rateForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const personId = $("ratePerson").value;
+    if (!personId) { $("formMsg").textContent = "Add a friend first, then rate them."; return; }
+    let dealId = $("rateDeal").value;
+    $("rateBtn").disabled = true;
+    try {
+      if (dealId === NEW) {
+        const title = $("newDeal").value.trim();
+        if (!title) { $("formMsg").textContent = "Give the new deal a name first."; $("newDeal").focus(); $("rateBtn").disabled = false; return; }
+        const existing = state.deals.find((d) => d.title.toLowerCase() === title.toLowerCase());
+        dealId = existing ? existing.id : (await store.add("deals", { title, createdAt: new Date().toISOString() })).id;
+        $("newDeal").value = "";
+      }
+      const prev = ratingsFor(personId, dealId).pop();
+      await store.add("ratings", { personId, dealId, value: state.value, note: $("rateNote").value.trim(), at: new Date().toISOString() });
+      $("rateNote").value = "";
+      state.selPerson = personId;
+      if (state.selDeal !== ANY) state.selDeal = dealId;
+      renderAll();
+      $("rateDeal").value = dealId; $("newDealWrap").hidden = true;
+      const name = state.people.find((p) => p.id === personId)?.name || "They";
+      const d = prev ? state.value - prev.value : 0;
+      $("formMsg").textContent = `Logged ${name} at ${state.value}% on ${dealName(dealId)}` + (prev ? (d ? ` (${d > 0 ? "up" : "down"} ${Math.abs(d)} from last time).` : " (same as last time).") : ".");
+    } catch (err) { $("formMsg").textContent = "Couldn't save that rating: " + (err?.message || "try again."); }
+    $("rateBtn").disabled = !state.people.length;
+  });
+
+  $("friendForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("friendName").value.trim();
+    if (!name) { $("friendName").focus(); return; }
+    if (state.people.some((p) => p.name.toLowerCase() === name.toLowerCase())) { $("formMsg").textContent = `${name} is already on the board.`; return; }
+    try {
+      const ref = await store.add("people", { name, createdAt: new Date().toISOString() });
+      $("friendName").value = "";
+      state.selPerson = ref?.id || state.selPerson; renderPickers();
+      $("formMsg").textContent = `Added ${name}. Drag the dial to give them a first rating.`;
+    } catch (err) { $("formMsg").textContent = "Couldn't add that friend: " + (err?.message || "try again."); }
+  });
+
+  $("logBody").addEventListener("click", async (e) => {
+    const btn = e.target.closest(".del"); if (!btn) return;
+    const id = btn.dataset.id;
+    if (pendingDelete !== id) { pendingDelete = id; renderLog(); setTimeout(() => { if (pendingDelete === id) { pendingDelete = null; renderLog(); } }, 4000); return; }
+    pendingDelete = null;
+    try { await store.remove("ratings", id); } catch (_) { $("formMsg").textContent = "Couldn't remove that rating."; }
+    renderLog();
+  });
+
+  $("exportBtn").addEventListener("click", async () => {
+    const names = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
+    const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
+    const lines = [["time", "person", "deal", "rating", "note"].join(",")];
+    [...state.ratings].sort(byTime).forEach((r) => lines.push([r.at, names[r.personId] || "", dealName(r.dealId), r.value, r.note].map(q).join(",")));
+    const csv = lines.join("\n");
+    const dl = window.claude?.use ? await window.claude.use("downloads") : null;
+    if (dl) {
+      try { await dl.save({ filename: `deal-dial-${new Date().toISOString().slice(0, 10)}.csv`, data: csv }); }
+      catch (err) { if (err?.code !== "declined") $("formMsg").textContent = "Couldn't save the file: " + (err?.message || err?.code); }
+    } else {
+      try { await navigator.clipboard.writeText(csv); $("formMsg").textContent = "Copied the CSV to your clipboard."; }
+      catch (_) { $("formMsg").textContent = "Export isn't available in this view."; }
+    }
+  });
+
+  setValue(50);
+  renderAll();
+  connect();
+})();
+</script>
